@@ -1,5 +1,4 @@
-# TruthTracker
-![logo](Truthtracker/w3images/logo1.png)
+
 
 ## Overview
 
