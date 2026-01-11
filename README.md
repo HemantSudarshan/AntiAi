@@ -13,13 +13,13 @@
 ## 🚀 Features
 
 ### 📰 Fake News Detection
-- **Hybrid Architecture:** Uses an ensemble of **RoBERTa** (Transformer) and **XGBoost** for robust text classification.
-- **Explainable AI (XAI):** Provides keyword-level analysis (LIME-style) to explain *why* an article was flagged.
-- **Real-time Analysis:** Sub-second inference latency.
+- **Hybrid Architecture:** Uses robust text classification models to analyze article content.
+- **Explainability:** Provides **keyword-level analysis** to highlight suspicious terms and patterns (e.g., sensationalism, urgency).
+- **Real-time Analysis:** Fast inference for immediate results.
 
 ### 🖼️ Deepfake Detection
-- **Advanced Vision Models:** Utilizes **InceptionResnetV1** (trained on VGGFace2) and face detection via **MTCNN**.
-- **Visual Evidence:** Generates **GradCAM heatmaps** to highlight manipulated regions (e.g., unnatural blending boundaries).
+- **Vision Models:** Utilizes face detection and deep learning classifiers to identify manipulated media.
+- **Visual Evidence:** Generates **heatmaps** to visualize analyzed face regions.
 - **Format Support:** Handles JPG, PNG, and WEBP formats via drag-and-drop.
 
 ### 💻 Modern Interface
