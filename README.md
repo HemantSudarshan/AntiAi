@@ -114,6 +114,25 @@ We align with the **International Fact-Checking Network (IFCN)** principles. Our
 
 ---
 
+## 📍 Development Roadmap
+
+This project is being built in distinct phases to ensure production-grade quality.
+
+- [x] **Phase 1: Backend Foundation**
+  - FastAPI setup, Fake News & Deepfake detection endpoints, Swagger docs.
+- [x] **Phase 2: Frontend Interface**
+  - React + TypeScript UI, Real-time analysis, Heatmap visualization.
+- [ ] **Phase 3: AI Enhancements (In Progress)**
+  - [ ] LIME/SHAP Explainability integration.
+  - [ ] EfficientNet-B4 logic for higher accuracy.
+  - [ ] Ensemble voting for text classification.
+- [ ] **Phase 4: Production Deployment**
+  - [ ] Docker containerization (Ready).
+  - [ ] Cloud deployment (Railway/Vercel).
+  - [ ] CI/CD Pipelines.
+
+---
+
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
