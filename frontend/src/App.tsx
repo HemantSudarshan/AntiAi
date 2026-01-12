@@ -6,13 +6,41 @@ import ResultsDisplay from './components/ResultsDisplay';
 
 type TabType = 'news' | 'image';
 
+interface Feature {
+    keyword: string;
+    importance: number;
+    impact: string;
+    reason?: string;
+}
+
+interface NewsExplanation {
+    method: string;
+    top_features: Feature[];
+    reasoning?: string;
+    patterns?: string[];
+}
+
+interface ImageExplanation {
+    heatmap?: string;
+    suspicious_regions: string[];
+    summary?: string;
+}
+
+interface Metadata {
+    model_version: string;
+    processing_time_ms: number;
+}
+
 interface Result {
     type: TabType;
     prediction: string;
     confidence: number;
-    explanation: any;
-    metadata?: any;
+    explanation: NewsExplanation | ImageExplanation;
+    metadata?: Metadata;
 }
+
+// Get API URL from environment or default to localhost
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
     const [activeTab, setActiveTab] = useState<TabType>('news');
@@ -27,7 +55,7 @@ function App() {
             const formData = new FormData();
             formData.append('text', text);
 
-            const response = await fetch('http://localhost:8000/api/v1/analyze-news', {
+            const response = await fetch(`${API_URL}/api/v1/analyze-news`, {
                 method: 'POST',
                 body: formData,
             });
@@ -40,7 +68,7 @@ function App() {
             setResults({ type: 'news', ...data });
         } catch (error) {
             console.error('Error:', error);
-            alert('Error analyzing news. Make sure the API is running on http://localhost:8000');
+            alert(`Error analyzing news. Make sure the API is running on ${API_URL}`);
         } finally {
             setLoading(false);
         }
@@ -54,7 +82,7 @@ function App() {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:8000/api/v1/analyze-image', {
+            const response = await fetch(`${API_URL}/api/v1/analyze-image`, {
                 method: 'POST',
                 body: formData,
             });
@@ -67,7 +95,7 @@ function App() {
             setResults({ type: 'image', ...data });
         } catch (error) {
             console.error('Error:', error);
-            alert('Error analyzing image. Make sure the API is running on http://localhost:8000');
+            alert(`Error analyzing image. Make sure the API is running on ${API_URL}`);
         } finally {
             setLoading(false);
         }

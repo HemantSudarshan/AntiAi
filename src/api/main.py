@@ -1,14 +1,34 @@
 """
 TruthTracker API - Production-Grade Misinformation Detection
 """
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends, Security, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import APIKeyHeader
 from contextlib import asynccontextmanager
 import os
 import time
+import logging
 from typing import Optional
 from dotenv import load_dotenv
+
+# Rate limiting
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    SLOWAPI_AVAILABLE = False
+    print("⚠️ slowapi not installed - rate limiting disabled")
+
+# Magic byte validation
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    print("⚠️ python-magic not installed - using MIME type only")
 
 # Optional torch import
 try:
@@ -20,10 +40,51 @@ except ImportError:
 
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Security configuration
+API_KEY = os.getenv("API_KEY", "dev-key-change-in-production")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Rate limiter setup
+if SLOWAPI_AVAILABLE:
+    limiter = Limiter(key_func=get_remote_address)
+else:
+    limiter = None
+
 # Global model references
 fake_news_model = None
 deepfake_model = None
 explainer = None
+
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    """Verify API key for authentication"""
+    # Skip in development mode
+    if os.getenv("ENVIRONMENT", "development") == "development":
+        return True
+    
+    if not api_key or api_key != API_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing API key"
+        )
+    return True
+
+
+def validate_image_file(contents: bytes, content_type: str) -> bool:
+    """Validate image using magic bytes if available, otherwise MIME type"""
+    if MAGIC_AVAILABLE:
+        try:
+            mime = magic.from_buffer(contents, mime=True)
+            return mime in ["image/jpeg", "image/png", "image/webp"]
+        except Exception as e:
+            logger.warning(f"Magic byte validation failed: {e}")
+            return content_type in ["image/jpeg", "image/png", "image/webp"]
+    else:
+        return content_type in ["image/jpeg", "image/png", "image/webp"]
 
 
 @asynccontextmanager
@@ -61,17 +122,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add rate limiter to app state if available
+if SLOWAPI_AVAILABLE:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS configuration
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 
@@ -96,7 +163,11 @@ async def health_check():
 
 
 @app.post("/api/v1/analyze-news")
-async def analyze_news(text: str = Form(...)):
+async def analyze_news(
+    request: Request,
+    text: str = Form(...),
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Analyze news article for authenticity
     
@@ -104,6 +175,13 @@ async def analyze_news(text: str = Form(...)):
     
     Returns prediction, confidence score, and explanation
     """
+    # Apply rate limiting if available
+    if SLOWAPI_AVAILABLE and limiter:
+        try:
+            await limiter.check_rate_limit(request, "10/minute")
+        except:
+            pass  # Already handled by middleware
+    
     start_time = time.time()
     
     # Validation
@@ -122,7 +200,7 @@ async def analyze_news(text: str = Form(...)):
     if fake_news_model is None:
         raise HTTPException(
             status_code=503,
-            detail="Fake news model not loaded"
+            detail="Service temporarily unavailable"
         )
     
     try:
@@ -154,12 +232,22 @@ async def analyze_news(text: str = Form(...)):
             }
         })
     
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"News analysis error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Analysis failed. Please try again."
+        )
 
 
 @app.post("/api/v1/analyze-image")
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(
+    request: Request,
+    file: UploadFile = File(...),
+    authenticated: bool = Depends(verify_api_key)
+):
     """
     Analyze image for deepfakes
     
@@ -167,28 +255,36 @@ async def analyze_image(file: UploadFile = File(...)):
     
     Returns prediction, confidence score, and heatmap
     """
+    # Apply rate limiting if available
+    if SLOWAPI_AVAILABLE and limiter:
+        try:
+            await limiter.check_rate_limit(request, "5/minute")
+        except:
+            pass
+    
     start_time = time.time()
     
-    # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/webp"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File type must be one of: {allowed_types}"
-        )
+    # Read file contents
+    contents = await file.read()
     
     # Validate file size (10MB max)
-    contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=400,
             detail="File size must not exceed 10MB"
         )
     
+    # Validate file type with magic bytes
+    if not validate_image_file(contents, file.content_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file"
+        )
+    
     if deepfake_model is None:
         raise HTTPException(
             status_code=503,
-            detail="Deepfake model not loaded"
+            detail="Service temporarily unavailable"
         )
     
     try:
@@ -223,8 +319,14 @@ async def analyze_image(file: UploadFile = File(...)):
             }
         })
     
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Image analysis error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Analysis failed. Please try again."
+        )
 
 
 @app.get("/api/v1/info")

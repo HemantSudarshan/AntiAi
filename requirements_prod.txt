@@ -1,4 +1,4 @@
-# TruthTracker API Requirements
+# TruthTracker API Requirements - Updated with Security Dependencies
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
@@ -21,6 +21,12 @@ pytorch-grad-cam>=1.5.0
 # Optional: XGBoost for ensemble
 xgboost>=2.0.0
 scikit-learn>=1.3.0
+
+# Security & Rate Limiting
+slowapi>=0.1.9
+python-magic>=0.4.27
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
 
 # Testing
 pytest>=7.4.0
