@@ -39,10 +39,11 @@ async def lifespan(app: FastAPI):
     from src.services.explainability import ExplainabilityService
     
     try:
-        fake_news_model = FakeNewsDetector()
-        deepfake_model = DeepfakeDetector()
+        # Phase 3: Use enhanced models with ensemble voting
+        fake_news_model = FakeNewsDetector(use_transformers=False, use_ensemble=True)
+        deepfake_model = DeepfakeDetector(model_type="efficientnet", use_ensemble=True)
         explainer = ExplainabilityService()
-        print("✅ Models loaded successfully")
+        print("✅ Phase 3 Enhanced Models loaded successfully")
     except Exception as e:
         print(f"⚠️ Model loading error: {e}")
         print("   Some endpoints may not work until models are available")
@@ -129,10 +130,15 @@ async def analyze_news(text: str = Form(...)):
         prediction = fake_news_model.predict(text)
         confidence = fake_news_model.get_confidence(text)
         
-        # Get explanation
+        # Get explanation with LIME integration
         explanation = {}
         if explainer:
-            explanation = explainer.explain_fake_news(text, prediction)
+            # Pass predict function for LIME
+            explanation = explainer.explain_fake_news(
+                text, 
+                prediction,
+                predict_fn=fake_news_model.predict_proba if hasattr(fake_news_model, 'predict_proba') else None
+            )
         
         processing_time = int((time.time() - start_time) * 1000)
         
@@ -190,12 +196,14 @@ async def analyze_image(file: UploadFile = File(...)):
         prediction = deepfake_model.predict(contents)
         confidence = deepfake_model.get_confidence(contents)
         
-        # Get explanation (heatmap)
+        # Get explanation (heatmap and regions)
         heatmap = None
         suspicious_regions = []
+        summary = ""
         if explainer:
             heatmap = explainer.generate_heatmap(contents, deepfake_model)
-            suspicious_regions = explainer.get_suspicious_regions(heatmap)
+            suspicious_regions = explainer.get_suspicious_regions(prediction)
+            summary = explainer.get_analysis_summary(prediction, confidence, 'image')
         
         processing_time = int((time.time() - start_time) * 1000)
         
@@ -206,7 +214,8 @@ async def analyze_image(file: UploadFile = File(...)):
             "confidence": round(float(confidence), 4),
             "explanation": {
                 "heatmap": heatmap,
-                "suspicious_regions": suspicious_regions
+                "suspicious_regions": suspicious_regions,
+                "summary": summary
             },
             "metadata": {
                 "model_version": "2.0",

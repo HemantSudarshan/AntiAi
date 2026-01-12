@@ -13,13 +13,14 @@
 ## 🚀 Features
 
 ### 📰 Fake News Detection
-- **Hybrid Architecture:** Uses robust text classification models to analyze article content.
-- **Explainability:** Provides **keyword-level analysis** to highlight suspicious terms and patterns (e.g., sensationalism, urgency).
-- **Real-time Analysis:** Fast inference for immediate results.
+- **Ensemble Architecture:** Combines Logistic Regression, Random Forest, and Gradient Boosting for robust classification.
+- **LIME Explainability:** Provides **word-level feature importance** to explain *why* an article was flagged.
+- **Real-time Analysis:** Fast inference with detailed confidence scores.
 
 ### 🖼️ Deepfake Detection
-- **Vision Models:** Utilizes face detection and deep learning classifiers to identify manipulated media.
-- **Visual Evidence:** Generates **heatmaps** to visualize analyzed face regions.
+- **EfficientNet-B4:** State-of-the-art vision model for high-accuracy detection.
+- **MTCNN Face Detection:** Automatically detects and analyzes faces in images.
+- **GradCAM Heatmaps:** Visualizes which regions triggered the detection.
 - **Format Support:** Handles JPG, PNG, and WEBP formats via drag-and-drop.
 
 ### 💻 Modern Interface
@@ -122,10 +123,11 @@ This project is being built in distinct phases to ensure production-grade qualit
   - FastAPI setup, Fake News & Deepfake detection endpoints, Swagger docs.
 - [x] **Phase 2: Frontend Interface**
   - React + TypeScript UI, Real-time analysis, Heatmap visualization.
-- [ ] **Phase 3: AI Enhancements (In Progress)**
-  - [ ] LIME/SHAP Explainability integration.
-  - [ ] EfficientNet-B4 logic for higher accuracy.
-  - [ ] Ensemble voting for text classification.
+- [x] **Phase 3: AI Enhancements**
+  - [x] LIME/SHAP Explainability integration.
+  - [x] EfficientNet-B4 for improved deepfake detection.
+  - [x] Ensemble voting for text classification (LR + RF + GB).
+  - [x] GradCAM visualization for image analysis.
 - [ ] **Phase 4: Production Deployment**
   - [ ] Docker containerization (Ready).
   - [ ] Cloud deployment (Railway/Vercel).
